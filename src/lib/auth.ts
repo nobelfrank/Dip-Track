@@ -18,34 +18,24 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          },
-          include: {
-            userRoles: true,
-            profile: true
-          }
-        })
+        // DEMO CREDENTIALS - Remove in production!
+        const demoUsers = {
+          'admin@diptrack.com': { password: 'admin123', roles: ['admin'], name: 'Admin User' },
+          'operator@diptrack.com': { password: 'operator123', roles: ['operator'], name: 'Operator User' },
+          'qc@diptrack.com': { password: 'qc123', roles: ['qc_officer'], name: 'QC Officer' }
+        };
 
-        if (!user) {
-          return null
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
-
-        if (!isPasswordValid) {
-          return null
+        const demoUser = demoUsers[credentials.email as keyof typeof demoUsers];
+        
+        if (!demoUser || demoUser.password !== credentials.password) {
+          return null;
         }
 
         return {
-          id: user.id,
-          email: user.email,
-          name: user.fullName,
-          roles: user.userRoles.map(ur => ur.role)
+          id: credentials.email,
+          email: credentials.email,
+          name: demoUser.name,
+          roles: demoUser.roles
         }
       }
     })
