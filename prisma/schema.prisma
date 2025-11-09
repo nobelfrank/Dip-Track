@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite doesn't support enums, using String with constraints
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  fullName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile   Profile?
+  userRoles UserRole[]
+  batches   Batch[]
+  alerts    Alert[]
+
+  @@map("users")
+}
+
+model Department {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  
+  profiles Profile[]
+
+  @@map("departments")
+}
+
+model UserRole {
+  id     String  @id @default(cuid())
+  userId String
+  role   String  // admin, supervisor, operator, qc_officer
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model Profile {
+  id              String  @id
+  email           String
+  fullName        String?
+  departmentId    String?
+  primaryFunction String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user       User        @relation(fields: [id], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("profiles")
+}
+
+model Batch {
+  id                String      @id @default(cuid())
+  batchId           String      @unique
+  productType       String
+  latexBatchId      String?
+  startDate         DateTime
+  endDate           DateTime?
+  shift             String
+  operatorId        String
+  status            String      @default("draft") // draft, active, completed, cancelled
+  currentStage      Int         @default(1)
+  stagesCompleted   Int         @default(0)
+  progressPercentage Int        @default(0)
+  storageTankId     String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  operator     User          @relation(fields: [operatorId], references: [id])
+  batchStages  BatchStage[]
+  qcResults    QCResult[]
+  alerts       Alert[]
+
+
+  @@map("batches")
+}
+
+model BatchStage {
+  id      String @id @default(cuid())
+  batchId String
+  stage   Int
+  data    String  // JSON string for SQLite compatibility
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, stage])
+  @@map("batch_stages")
+}
+
+
+
+model QCResult {
+  id          String   @id @default(cuid())
+  batchId     String
+  testType    String
+  result      String
+  passed      Boolean
+  notes       String?
+  testedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@map("qc_results")
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  severity    String   // warning, critical, info
+  source      String   // system, batch, equipment
+  batchId     String?
+  assignedTo  String?
+  status      String   @default("active") // active, acknowledged, resolved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  batch      Batch? @relation(fields: [batchId], references: [id])
+  assignedUser User? @relation(fields: [assignedTo], references: [id])
+
+  @@map("alerts")
+}
+
+model SystemMetric {
+  id        String   @id @default(cuid())
+  name      String
+  value     Float
+  unit      String?
+  source    String
+  timestamp DateTime @default(now())
+
+  @@map("system_metrics")
+}
+
